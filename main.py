@@ -1,61 +1,70 @@
+# ELBRUSE Bootcamp 
+# 23-12-2024
+# Home Work Week 3 Day 2
+# Andrey Abramov
+# abramov.andre@yandex.ru
+
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import yfinance as yf
+import functools
 
-# Название 
-# Описание 
-st.title('Заполни пропуски')
-st.write('Загрузи свой датафрейм и заполни пропуски') 
-st.write('Новая строка')
-
-
-## Шаг 1. Загрузка CSV файла
-
-
-uploaded_file = st.sidebar.file_uploader('Загрузи CSV файл', type='csv')
-
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
-    st.write(df.head(5))
+#initialization ----------------------------
+if 'ticker_loaded' not in st.session_state:
+    st.session_state['ticker_loaded'] = False
 else:
-    st.stop()
+    st.session_state.ticker_loaded = st.session_state.get('ticker_loaded', False)
+
+if 'ticker_name' not in st.session_state:
+    st.session_state['ticker_name'] = 'AAPL'
 
 
-## Шаг 2. Проверка наличия пропусков в файле
+#Основная страница работы ----------------------------
 
-missed_values = df.isna().sum()
-missed_values = missed_values[missed_values > 0]
+# навигация по страницам
+page01 = st.Page("page_01.py", title = 'Набор данных')
+page011 = st.Page("page_04.py", title = 'Описание набора данных')
+page02 = st.Page("page_02.py", title = 'Цена при открытии торгов')
+page03 = st.Page("page_03.py", title = 'Ежедневная выручка')
+page05 = st.Page("page_05.py", title = 'Среднее за 7 дней')
+page06 = st.Page("page_06.py", title = 'Объем торгов')
+page07 = st.Page("page_07.py", title = 'Матрица корреляции')
 
-if len(missed_values) > 0:
-    fig, ax = plt.subplots()
-    sns.barplot(x=missed_values.index, y=missed_values.values)
-    ax.set_title('Пропуски в столбцах')
-    ax.set_ylabel('Количество пропусков')
-    st.pyplot(fig)
 
-## Шаг 3. Заполнить пропуски
-    button = st.button('Заполнить пропуски')
-    if button:
-        df_filled = df[missed_values.index].copy()
+pg = st.navigation([page01, page011, page02, page03, page05, page06, page07])
+pg.run()
 
-        for col in df_filled.columns:
-            if df_filled[col].dtype == 'object': # Категориальные признаки
-                df_filled[col] = df_filled[col].fillna(df_filled[col].mode()[0])
-            else: # Численные признаки
-                df_filled[col] = df_filled[col].fillna(df_filled[col].median())
 
-        st.write(df_filled.head(5))
 
-## Шаг 4. Выгрузить заполнный от прпусков CSV файл
+def change_vis():
+        st.session_state.ticker_loaded = not st.session_state.get('ticker_loaded', False)
 
-        download_button = st.download_button(label='Скачать CSV файл', 
-                   data=df_filled.to_csv(), 
-                   file_name='filled_fate.csv')
-        
-else:
-    st.write('Нет пропусков в данных')
-    st.stop()
+# Add an items to the sidebar:
+# выбор наиманования тикера
+
+st.session_state.ticker_name = st.sidebar.selectbox(
+    'Выберите тикер эмитента: ',
+    ('AAPL', 'GOOGL', 'META', 'NFLX', 'AMZN'),
+    on_change= change_vis
+)
+
+@functools.lru_cache(maxsize=10)
+def load_data(ticker_name):
+     return  yf.Ticker(st.session_state.ticker_name)
+
+
+if st.sidebar.button("Загрузить данные по тикеру"):
+    if 'ticker_name' not in st.session_state:
+        st.session_state['ticker_name'] = 'AAPL'
+    #st.write("Why hello there: " + ticker_name)
+    st.session_state.ticker_data = load_data(st.session_state.ticker_name)
+    # data for the last month
+    st.session_state.historical_data = st.session_state.ticker_data.history(period="1mo")  
+    #ticker_loaded = True
+    st.session_state.ticker_loaded = True
+
 
 
 
